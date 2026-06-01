@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HelpDesk Lite — Tickets</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+  <header>
+    <div class="header-inner">
+      <span class="logo">🎫 HelpDesk Lite</span>
+      <div class="header-actions">
+        {% if logged_in %}
+        <span class="nav-user">Signed in as {{ current_user }} ({{ current_role | capitalize }})</span>
+        <a href="/logout" class="btn btn-secondary">Logout</a>
+        {% else %}
+        <a href="/login" class="btn btn-secondary">Login</a>
+        {% endif %}
+        <a href="/submit" class="btn btn-primary">+ New Ticket</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- Dashboard Stats -->
+    <section class="dashboard">
+      <div class="stat-card">
+        <span class="stat-number">{{ stats.total }}</span>
+        <span class="stat-label">Total</span>
+      </div>
+      <div class="stat-card todo">
+        <span class="stat-number">{{ stats.todo }}</span>
+        <span class="stat-label">To Do</span>
+      </div>
+      <div class="stat-card inprogress">
+        <span class="stat-number">{{ stats.in_progress }}</span>
+        <span class="stat-label">In Progress</span>
+      </div>
+      <div class="stat-card done">
+        <span class="stat-number">{{ stats.done }}</span>
+        <span class="stat-label">Done</span>
+      </div>
+    </section>
+
+    <!-- Category Filter -->
+    <div class="filter-bar">
+      <label for="category-filter" class="filter-label">Filter by Category:</label>
+      <select id="category-filter" class="category-filter-select" onchange="filterByCategory()">
+        <option value="">All Categories</option>
+        {% for cat in categories %}
+        <option value="{{ cat }}">{{ cat }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-sm btn-secondary" onclick="resetFilter()">Reset</button>
+    </div>
+
+    <!-- Categorized Ticket View -->
+    {% if tickets %}
+    <div class="categories-grid">
+      {% for category in organized_tickets %}
+      <div class="category-section" data-category="{{ category }}">
+        <div class="category-header"
+          style="background: {{ category_colors[category]['bg'] }}; border-left: 4px solid {{ category_colors[category]['color'] }};">
+          <span class="category-name" style="color: {{ category_colors[category]['color'] }};">📁 {{ category }}</span>
+          <span class="category-count">{{ organized_tickets[category].values() | map('length') | sum }}</span>
+        </div>
+
+        <!-- Status Columns within Category -->
+        <div class="status-columns">
+          {% for status in ['To Do', 'In Progress', 'In Review', 'Done'] %}
+          {% set tickets_in_status = organized_tickets[category][status] %}
+          <div class="status-column" data-status="{{ status }}" {% if current_role=='manager'
+            %}ondrop="handleDrop(event)" ondragover="handleDragOver(event)" {% endif %}>
+            <div class="status-header"
+              style="background: {{ status_colors[status]['bg'] }}; border-bottom: 2px solid {{ status_colors[status]['border'] }};">
+              <span class="status-title" style="color: {{ status_colors[status]['color'] }};">{{ status }}</span>
+              <span class="status-badge" style="background: {{ status_colors[status]['color'] }}; color: white;">{{
+                tickets_in_status | length }}</span>
+            </div>
+
+            <div class="ticket-stack" data-drop-zone="tickets">
+              {% if tickets_in_status %}
+              {% for ticket in tickets_in_status %}
+              <div class="ticket-card-compact" data-ticket-id="{{ ticket.id }}" data-ticket-status="{{ status }}" {% if
+                current_role=='manager' %}draggable="true" ondragstart="handleDragStart(event)"
+                ondragend="handleDragEnd(event)" {% endif %}>
+                <div class="ticket-header">
+                  <span class="ticket-id">#{{ ticket.id }}</span>
+                  <div class="ticket-priority"
+                    style="background: {{ priority_colors[ticket.priority or 'Medium']['bg'] }}; color: {{ priority_colors[ticket.priority or 'Medium']['color'] }};">
+                    {{ priority_colors[ticket.priority or 'Medium']['icon'] }} {{ ticket.priority or 'Medium' }}
+                  </div>
+                </div>
+
+                <h4 class="ticket-title-compact">{{ ticket.title }}</h4>
+                <p class="ticket-desc-compact">{{ ticket.description[:80] }}{% if ticket.description|length > 80 %}...{%
+                  endif %}</p>
+
+                <div class="ticket-info">
+                  {% if ticket.assigned_to %}
+                  <span class="ticket-assigned">👤 {{ ticket.assigned_to }}</span>
+                  {% else %}
+                  <span class="ticket-unassigned">⚠ Unassigned</span>
+                  {% endif %}
+                  {% if ticket.blocked %}
+                  <span class="ticket-blocked">🔒 Blocked</span>
+                  {% endif %}
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="ticket-quick-actions">
+                  <a href="/tickets/{{ ticket.id }}" class="quick-btn view-btn" title="View details">View</a>
+                  {% if current_role == 'manager' %}
+                  {% if status != 'Done' and not ticket.blocked %}
+                  <form method="post" action="/tickets/{{ ticket.id }}/status" style="display: inline;">
+                    <input type="hidden" name="next" value="{{ request.path }}">
+                    <button type="submit" class="quick-btn advance-btn" title="Move to next status">→ Next</button>
+                  </form>
+                  {% endif %}
+                  {% if ticket.blocked %}
+                  <form method="post" action="/tickets/{{ ticket.id }}/block" style="display: inline;">
+                    <input type="hidden" name="next" value="{{ request.path }}">
+                    <button type="submit" class="quick-btn unblock-btn" title="Unblock">🔓 Unblock</button>
+                  </form>
+                  {% elif status != 'Done' %}
+                  <form method="post" action="/tickets/{{ ticket.id }}/block" style="display: inline;">
+                    <input type="hidden" name="next" value="{{ request.path }}">
+                    <button type="submit" class="quick-btn block-btn" title="Block">🔒 Block</button>
+                  </form>
+                  {% endif %}
+                  {% endif %}
+                  {% if status == 'Done' and (current_role == 'manager' or ticket.submitter == current_user) %}
+                  <form method="post" action="/tickets/{{ ticket.id }}/reopen" style="display: inline;">
+                    <input type="hidden" name="next" value="{{ request.path }}">
+                    <button type="submit" class="quick-btn reopen-btn" title="Reopen">↻ Reopen</button>
+                  </form>
+                  {% endif %}
+                </div>
+
+                <!-- Expanded Details (shown on hover) -->
+                <div class="ticket-details-popup" id="details-{{ ticket.id }}" style="display: none;">
+                  <div class="details-header">
+                    <h3>Ticket #{{ ticket.id }}: {{ ticket.title }}</h3>
+                    <button class="close-btn" onclick="closeDetails({{ ticket.id }})">✕</button>
+                  </div>
+                  <p class="details-desc">{{ ticket.description }}</p>
+
+                  {% if current_role == 'manager' %}
+                  <!-- Priority selector -->
+                  <form method="post" action="/tickets/{{ ticket.id }}/priority" class="inline-form">
+                    <label>Priority:</label>
+                    <select name="priority">
+                      {% for p in priorities %}
+                      <option value="{{ p }}" {% if p==ticket.priority %}selected{% endif %}>{{ p }}</option>
+                      {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-secondary">Update</button>
+                  </form>
+
+                  <!-- Category selector -->
+                  <form method="post" action="/tickets/{{ ticket.id }}/classify" class="inline-form">
+                    <label>Category:</label>
+                    <select name="category">
+                      {% for c in categories %}
+                      <option value="{{ c }}" {% if c==ticket.category %}selected{% endif %}>{{ c }}</option>
+                      {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-secondary">Update</button>
+                  </form>
+
+                  <!-- Assign form -->
+                  <form method="post" action="/tickets/{{ ticket.id }}/assign" class="inline-form">
+                    <label>Assigned to:</label>
+                    <input type="text" name="assigned_to" value="{{ ticket.assigned_to or '' }}" placeholder="Username">
+                    <button type="submit" class="btn btn-sm btn-secondary">Update</button>
+                  </form>
+
+                  <!-- Dates -->
+                  <form method="post" action="/tickets/{{ ticket.id }}/assign" class="inline-form">
+                    <label>Start Date:</label>
+                    <input type="date" name="start_date" value="{{ ticket.start_date or '' }}">
+                    <label>Due Date:</label>
+                    <input type="date" name="due_date" value="{{ ticket.due_date or '' }}">
+                    <button type="submit" class="btn btn-sm btn-secondary">Save Dates</button>
+                  </form>
+                  {% endif %}
+
+                  {% if current_role in ['manager','agent'] or ticket.submitter == current_user %}
+                  <p class="ticket-submitter-detail">Submitted by: <strong>{{ ticket.submitter or 'Unknown' }}</strong>
+                  </p>
+                  {% endif %}
+                </div>
+
+                <!-- Card click to expand -->
+                <button class="expand-btn" onclick="toggleDetails({{ ticket.id }})" title="View details">⋯</button>
+              </div>
+              {% endfor %}
+              {% else %}
+              <div class="empty-status">No tickets</div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="empty-state">
+      <p>No tickets yet.</p>
+      <a href="/submit" class="btn btn-primary">Submit the first one</a>
+    </div>
+    {% endif %}
+
+  </main>
+
+  <script>
+    let draggedTicket = null;
+
+    // ── Drag and Drop Handlers ──────────────────────────────────────────
+    function handleDragStart(event) {
+      draggedTicket = event.target.closest('.ticket-card-compact');
+      event.target.closest('.ticket-card-compact').style.opacity = '0.5';
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/html', event.target.closest('.ticket-card-compact').innerHTML);
+    }
+
+    function handleDragEnd(event) {
+      if (draggedTicket) {
+        draggedTicket.style.opacity = '1';
+      }
+      draggedTicket = null;
+    }
+
+    function handleDragOver(event) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      const dropZone = event.currentTarget;
+      dropZone.classList.add('drag-over');
+    }
+
+    function handleDrop(event) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const dropZone = event.currentTarget;
+      dropZone.classList.remove('drag-over');
+
+      if (!draggedTicket) return;
+
+      const ticketId = draggedTicket.dataset.ticketId;
+      const newStatus = dropZone.dataset.status;
+
+      if (!newStatus) return;
+
+      // Move ticket to new status column via AJAX
+      fetch(`/tickets/${ticketId}/status`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `status=${encodeURIComponent(newStatus)}`
+      })
+        .then(response => {
+          if (response.ok) {
+            location.reload();
+          } else {
+            alert('Failed to move ticket. You may not have permission.');
+            draggedTicket.style.opacity = '1';
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          alert('Failed to move ticket');
+          draggedTicket.style.opacity = '1';
+        });
+    }
+
+    // ── Category Filter ─────────────────────────────────────────────────
+    function filterByCategory() {
+      const filterValue = document.getElementById('category-filter').value;
+      const sections = document.querySelectorAll('.category-section');
+
+      sections.forEach(section => {
+        if (!filterValue) {
+          section.style.display = 'block';
+        } else if (section.dataset.category === filterValue) {
+          section.style.display = 'block';
+        } else {
+          section.style.display = 'none';
+        }
+      });
+    }
+
+    function resetFilter() {
+      document.getElementById('category-filter').value = '';
+      filterByCategory();
+    }
+
+    // Add event listener to category filter
+    const categoryFilter = document.getElementById('category-filter');
+    if (categoryFilter) {
+      categoryFilter.addEventListener('change', filterByCategory);
+    }
+
+    // Prevent drag-over on nested elements
+    document.addEventListener('dragover', function (event) {
+      const dropZone = event.target.closest('[data-drop-zone="tickets"]');
+      if (dropZone) {
+        event.preventDefault();
+        dropZone.parentElement.classList.add('drag-over');
+      }
+    });
+
+    document.addEventListener('dragleave', function (event) {
+      const dropZone = event.target.closest('[data-drop-zone="tickets"]');
+      if (dropZone && !dropZone.contains(event.relatedTarget)) {
+        dropZone.parentElement.classList.remove('drag-over');
+      }
+    });
+
+    // ── Details Popup ───────────────────────────────────────────────────
+    function toggleDetails(id) {
+      const popup = document.getElementById(`details-${id}`);
+      if (popup) {
+        popup.style.display = popup.style.display === 'none' ? 'block' : 'none';
+      }
+    }
+
+    function closeDetails(id) {
+      const popup = document.getElementById(`details-${id}`);
+      if (popup) {
+        popup.style.display = 'none';
+      }
+    }
+
+    // Close details when clicking outside
+    document.addEventListener('click', function (event) {
+      if (!event.target.closest('.ticket-card-compact') && !event.target.closest('.ticket-details-popup')) {
+        document.querySelectorAll('.ticket-details-popup').forEach(popup => {
+          popup.style.display = 'none';
+        });
+      }
+    });
+  </script>
+</body>
+
+</html>

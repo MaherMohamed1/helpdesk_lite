@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ticket #{{ ticket.id }} — {{ ticket.title }}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 20px;
+        }
+
+        .detail-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px;
+            box-shadow: var(--shadow);
+        }
+
+        .detail-meta {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .detail-row {
+            margin-top: 12px;
+        }
+
+        .muted {
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="header-inner">
+            <a href="/tickets" class="logo">🎫 HelpDesk Lite</a>
+            <div class="header-actions">
+                {% if logged_in %}
+                <span class="nav-user">Signed in as {{ current_user }} ({{ current_role | capitalize }})</span>
+                <a href="/logout" class="btn btn-secondary">Logout</a>
+                {% else %}
+                <a href="/login" class="btn btn-secondary">Login</a>
+                {% endif %}
+                <a href="/tickets" class="btn btn-secondary">← All Tickets</a>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="detail-grid">
+            <div class="detail-card">
+                <div class="detail-meta">
+                    <h2 style="margin:0;">#{{ ticket.id }} — {{ ticket.title }}</h2>
+                    <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+                        <span class="badge"
+                            style="background: {{ status_colors[ticket.status]['bg'] }}; color: {{ status_colors[ticket.status]['color'] }};">{{
+                            ticket.status }}</span>
+                        <span class="ticket-priority"
+                            style="background: {{ priority_colors[ticket.priority or 'Medium']['bg'] }}; color: {{ priority_colors[ticket.priority or 'Medium']['color'] }};">{{
+                            priority_colors[ticket.priority or 'Medium']['icon'] }} {{ ticket.priority or 'Medium'
+                            }}</span>
+                    </div>
+                </div>
+
+                <p class="muted">Category: <strong
+                        style="color: {{ category_colors[ticket.category or 'Other']['color'] }}">{{ ticket.category or
+                        'Other' }}</strong></p>
+
+                <div class="detail-row">
+                    <h4>Description</h4>
+                    <p class="details-desc" style="padding:12px; background:var(--secondary); border-radius:6px;">{{
+                        ticket.description }}</p>
+                </div>
+
+                <div class="detail-row">
+                    <h4>Metadata</h4>
+                    <p class="muted">Assigned to: <strong>{{ ticket.assigned_to or 'Unassigned' }}</strong></p>
+                    <p class="muted">Submitted by: <strong>{{ ticket.submitter or '—' }}</strong></p>
+                    <p class="muted">Start: <strong>{{ ticket.start_date or '—' }}</strong> — Due: <strong>{{
+                            ticket.due_date or '—' }}</strong></p>
+                    {% if ticket.blocked %}
+                    <p class="muted">Status: <strong>Blocked</strong></p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <aside class="detail-card">
+                <h3 style="margin-top:0;">Actions</h3>
+
+                {% if current_role == 'manager' %}
+                <!-- Priority -->
+                <form method="post" action="/tickets/{{ ticket.id }}/priority">
+                    <input type="hidden" name="next" value="{{ request.path }}">
+                    <label class="muted">Priority</label>
+                    <select name="priority">
+                        {% for p in priorities %}
+                        <option value="{{ p }}" {% if p==ticket.priority %}selected{% endif %}>{{ p }}</option>
+                        {% endfor %}
+                    </select>
+                    <div style="margin-top:8px;"><button class="btn btn-sm btn-secondary">Update</button></div>
+                </form>
+
+                <!-- Category -->
+                <form method="post" action="/tickets/{{ ticket.id }}/classify" style="margin-top:12px;">
+                    <input type="hidden" name="next" value="{{ request.path }}">
+                    <label class="muted">Category</label>
+                    <select name="category">
+                        {% for c in categories %}
+                        <option value="{{ c }}" {% if c==ticket.category %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                    <div style="margin-top:8px;"><button class="btn btn-sm btn-secondary">Update</button></div>
+                </form>
+
+                <!-- Assign / Dates -->
+                <form method="post" action="/tickets/{{ ticket.id }}/assign" style="margin-top:12px;">
+                    <input type="hidden" name="next" value="{{ request.path }}">
+                    <label class="muted">Assign to</label>
+                    <input type="text" name="assigned_to" value="{{ ticket.assigned_to or '' }}" placeholder="username">
+                    <label class="muted" style="margin-top:8px;">Start date</label>
+                    <input type="date" name="start_date" value="{{ ticket.start_date or '' }}">
+                    <label class="muted" style="margin-top:8px;">Due date</label>
+                    <input type="date" name="due_date" value="{{ ticket.due_date or '' }}">
+                    <div style="margin-top:8px;"><button class="btn btn-sm btn-secondary">Save</button></div>
+                </form>
+
+                <!-- Status -->
+                <form method="post" action="/tickets/{{ ticket.id }}/status" style="margin-top:12px;">
+                    <input type="hidden" name="next" value="{{ request.path }}">
+                    <label class="muted">Set status</label>
+                    <select name="status">
+                        {% for s in ['To Do','In Progress','In Review','Done'] %}
+                        <option value="{{ s }}" {% if s==ticket.status %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                    <div style="margin-top:8px;"><button class="btn btn-sm btn-primary">Change Status</button></div>
+                </form>
+
+                <!-- Block / Reopen -->
+                <div style="margin-top:12px; display:flex; gap:8px;">
+                    <form method="post" action="/tickets/{{ ticket.id }}/block">
+                        <input type="hidden" name="next" value="{{ request.path }}">
+                        {% if ticket.blocked %}
+                        <button class="btn btn-sm btn-secondary">Unblock</button>
+                        {% else %}
+                        <button class="btn btn-sm btn-secondary">Mark Blocked</button>
+                        {% endif %}
+                    </form>
+                    {% if ticket.status == 'Done' and (current_role == 'manager' or ticket.submitter == current_user) %}
+                    <form method="post" action="/tickets/{{ ticket.id }}/reopen">
+                        <input type="hidden" name="next" value="{{ request.path }}">
+                        <button class="btn btn-sm btn-secondary">Reopen</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% else %}
+                <p class="muted">You can view ticket details. Contact support to change ticket metadata.</p>
+                {% endif %}
+            </aside>
+        </div>
+    </main>
+
+</body>
+
+</html>

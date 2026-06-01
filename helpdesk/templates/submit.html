@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HelpDesk Lite — Submit Ticket</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+  <header>
+    <div class="header-inner">
+      <a href="/tickets" class="logo">🎫 HelpDesk Lite</a>
+      <div class="header-actions">
+        {% if logged_in %}
+        <span class="nav-user">Signed in as {{ current_user }} ({{ current_role | capitalize }})</span>
+        <a href="/logout" class="btn btn-secondary">Logout</a>
+        {% else %}
+        <a href="/login" class="btn btn-secondary">Login</a>
+        {% endif %}
+        <a href="/tickets" class="btn btn-secondary">← All Tickets</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="centered">
+    <div class="form-card">
+      <h2>Submit a Request</h2>
+      <p class="form-subtitle">Describe your issue and an agent will pick it up.</p>
+
+      <form method="post" action="/tickets">
+
+        <div class="field">
+          <label for="title">Title <span class="required">*</span></label>
+          <input type="text" id="title" name="title" placeholder="Short summary of the issue" required autofocus>
+        </div>
+
+        <div class="field">
+          <label for="category">Category <span class="required">*</span></label>
+          <select id="category" name="category" required>
+            <option value="IT">IT</option>
+            <option value="Development">Development</option>
+            <option value="HR">HR</option>
+            <option value="Finance">Finance</option>
+            <option value="Other" selected>Other</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="priority">Priority</label>
+          <select id="priority" name="priority">
+            <option value="Low">Low</option>
+            <option value="Medium" selected>Medium</option>
+            <option value="High">High</option>
+            <option value="Critical">Critical</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="description">Description <span class="required">*</span></label>
+          <textarea id="description" name="description" rows="5" placeholder="Describe the problem in detail…"
+            required></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full">Submit Ticket</button>
+
+      </form>
+    </div>
+  </main>
+</body>
+
+</html>

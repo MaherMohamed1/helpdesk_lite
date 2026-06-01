@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HelpDesk Lite — Login</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <header>
+        <div class="header-inner">
+            <a href="/login" class="logo">🎫 HelpDesk Lite</a>
+            <div class="header-actions">
+                <a href="/signup" class="btn btn-secondary">Sign Up</a>
+                <a href="/login" class="btn btn-primary">Login</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="centered">
+        <div class="form-card">
+            <h2>Sign In</h2>
+            <p class="form-subtitle">Enter your username and password to manage tickets.</p>
+            <p class="form-note">Demo accounts: <strong>manager / Manager123!</strong> and <strong>agent /
+                    Agent123!</strong></p>
+
+            {% if message %}
+            <div class="form-success">{{ message }}</div>
+            {% endif %}
+
+            {% if error %}
+            <div class="form-error">{{ error }}</div>
+            {% endif %}
+
+            <form method="post" action="{{ url_for('login') }}">
+                <div class="field">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" placeholder="admin" required autofocus>
+                </div>
+
+                <div class="field">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-full">Sign In</button>
+            </form>
+        </div>
+    </main>
+</body>
+
+</html>
