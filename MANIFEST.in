@@ -1,0 +1,9 @@
+include helpdesk/requirements.txt
+include helpdesk/Procfile
+include CHANGELOG.md
+include CONTRIBUTING.md
+include DEVELOPMENT.md
+include SECURITY.md
+include LICENSE
+recursive-include helpdesk/templates *
+recursive-include helpdesk/static *

@@ -1,6 +1,15 @@
 # HelpDesk Lite
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A minimal internal ticketing system — Flask + SQLite + plain HTML.
+
+**Features:**
+- 🔐 User authentication (login/signup)
+- 🎫 Ticket management (create, view, update status)
+- 📊 Dashboard with ticket overview
+- 🎨 Responsive UI design
+- ⚡ Minimal dependencies, fast setup
 
 ## Folder Structure
 
@@ -97,7 +106,54 @@ python helpdesk/smoke_test.py
 
 This queries `/`, `/login`, `/signup`, `/tickets`, and `/submit` on `http://127.0.0.1:8000`.
 
----
+## Environment Variables
+
+Create a `.env` file in the root directory (copy from `.env.example`):
+
+```bash
+FLASK_ENV=development
+FLASK_DEBUG=0
+SECRET_KEY=your-secret-key-here
+DATABASE_URL=sqlite:///helpdesk.db
+HOST=localhost
+PORT=5000
+```
+
+## Deployment
+
+### Docker
+
+If you have Docker installed, build and run the container:
+
+```bash
+docker build -t helpdesk-lite .
+docker run -p 8000:8000 helpdesk-lite
+```
+
+### Heroku
+
+Deploy using the included `Procfile`:
+
+```bash
+heroku create your-app-name
+git push heroku main
+```
+
+### Cloud Platforms
+
+The app is compatible with AWS, Azure, Google Cloud, and other platforms. Install dependencies and set the required environment variables before running.
+
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+For issues, questions, or suggestions, please open an [issue](https://github.com/YOUR-USERNAME/helpdesk_lite/issues) on GitHub.
 
 ## Troubleshooting
 

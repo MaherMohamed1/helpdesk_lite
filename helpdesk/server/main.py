@@ -18,7 +18,8 @@ def login_required(view):
     @functools.wraps(view)
     def wrapped_view(*args, **kwargs):
         if not session.get("user"):
-            return redirect(url_for("login"))        return view(*args, **kwargs)
+            return redirect(url_for("login"))
+        return view(*args, **kwargs)
     return wrapped_view
 
 
