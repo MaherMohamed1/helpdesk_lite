@@ -11,10 +11,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
 
@@ -23,10 +23,17 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r helpdesk/requirements.txt
 
-    - name: Run smoke tests
+    - name: Start Flask server
       run: |
         cd helpdesk
-        python ../smoke_test.py
+        python server/main.py &
+        sleep 3
+      timeout-minutes: 1
+
+    - name: Run smoke tests
+      run: |
+        python helpdesk/smoke_test.py
+      timeout-minutes: 2
 
     - name: Lint with flake8
       continue-on-error: true
