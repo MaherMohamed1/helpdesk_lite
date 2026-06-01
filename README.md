@@ -1,113 +1,127 @@
 # HelpDesk Lite
 
-A minimal internal ticketing system built with Flask, SQLite, and plain HTML.
+A minimal internal ticketing system — Flask + SQLite + plain HTML.
 
-## Overview
-
-HelpDesk Lite is a lightweight ticketing system designed for internal team support. It provides essential features for submitting and tracking support tickets with a clean, minimal interface.
-
-## Project Structure
+## Folder Structure
 
 ```
-helpdesk_lite/
-├── helpdesk/
-│   ├── server/
-│   │   └── main.py              # Flask application (routes + database logic)
-│   ├── templates/
-│   │   ├── login.html           # User login page
-│   │   ├── signup.html          # User registration page
-│   │   ├── submit.html          # Ticket submission form
-│   │   ├── ticket_detail.html   # Individual ticket view
-│   │   └── tickets.html         # Ticket list & dashboard
-│   ├── static/
-│   │   └── style.css            # Application styles
-│   ├── requirements.txt         # Python dependencies
-│   ├── Procfile                 # Deployment configuration
-│   ├── start_dev.ps1            # Development startup script (PowerShell)
-│   ├── start_prod.ps1           # Production startup script (PowerShell)
-│   ├── run_prod.py              # Production runner
-│   ├── smoke_test.py            # Smoke tests
-│   └── README.md                # Detailed setup guide
-└── README.md                    # This file
+helpdesk/
+├── server/
+│   └── main.py          # Flask app (all routes + DB logic)
+├── templates/
+│   ├── tickets.html     # Ticket list + dashboard
+│   └── submit.html      # Submit ticket form
+├── static/
+│   └── style.css        # All styles
+├── requirements.txt
+└── helpdesk.db          # Auto-created on first run
 ```
 
-## Quick Start
+## Setup & Run
 
-### Prerequisites
+### 1. Create a Python virtual environment (recommended)
 
-- Python 3.x
-- pip
+From the repository root (PowerShell example):
 
-### Installation
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate
+pip install -r helpdesk/requirements.txt
+```
 
-1. **Create and activate a virtual environment:**
+Or, change into the `helpdesk` folder and install there:
 
 ```powershell
 cd helpdesk
 python -m venv .venv
 .\.venv\Scripts\Activate
-```
-
-2. **Install dependencies:**
-
-```powershell
 pip install -r requirements.txt
 ```
 
-3. **Run the application:**
+### 2. Start the development server
+
+Run from inside the `helpdesk` folder (recommended):
 
 ```powershell
+cd helpdesk
 python server/main.py
 ```
 
-The application will start on `http://localhost:5000`
-
-## Development
-
-### Using the start script:
+Or from the repository root (explicit path):
 
 ```powershell
-cd helpdesk
-.\start_dev.ps1
+python helpdesk/server/main.py
 ```
 
-### Running tests:
+Notes:
+- Default development port is `8000`. To change the port set the `PORT` environment variable (PowerShell): ` $env:PORT=5001 ` then run the command above.
+- The app creates `helpdesk.db` automatically on first startup.
+
+### 3. Run in production (Waitress)
+
+From the repository root:
 
 ```powershell
-python smoke_test.py
+python helpdesk/run_prod.py
+# or using the waitress CLI (if installed):
+waitress-serve --listen=:8000 server.main:app
 ```
 
-## Deployment
-
-### Production deployment:
+You can set `PORT`, `HOST`, and `SECRET_KEY` environment variables before starting the server. Example (PowerShell):
 
 ```powershell
-cd helpdesk
-.\start_prod.ps1
+$env:PORT=8000; $env:HOST='0.0.0.0'; $env:SECRET_KEY='your-secret'
+python helpdesk/run_prod.py
 ```
 
-Or use the Procfile:
+### Helper scripts (Windows PowerShell)
 
-```bash
-heroku create
-git push heroku main
+Two convenience scripts are included in the `helpdesk` folder:
+- `start_dev.ps1` — creates/activates a venv (with `-Install`) and starts the dev server.
+- `start_prod.ps1` — creates/activates a venv (with `-Install`) and runs `run_prod.py` with optional `-Port` and `-Host` params.
+
+Example (from repo root):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\helpdesk\start_dev.ps1 -Install
+powershell -File .\helpdesk\start_prod.ps1 -Port 8000
 ```
 
-## Database
+### 4. Smoke test
 
-The application uses SQLite for data persistence. The database file (`helpdesk.db`) is automatically created on first run.
+Quick check (from repo root):
 
-## Features
+```powershell
+python helpdesk/smoke_test.py
+```
 
-- **User Authentication**: Login and signup functionality
-- **Ticket Management**: Submit, view, and track support tickets
-- **Responsive UI**: Works on desktop and mobile browsers
-- **Minimal Stack**: No complex frameworks, just Flask and SQLite
+This queries `/`, `/login`, `/signup`, `/tickets`, and `/submit` on `http://127.0.0.1:8000`.
+
+---
 
 ## Troubleshooting
 
-For detailed setup instructions and troubleshooting, see [helpdesk/README.md](helpdesk/README.md).
+- Error "can't open file 'server/main.py'": you likely ran `python server/main.py` from the repository root. Either `cd helpdesk` first or run `python helpdesk/server/main.py` from repo root.
+- `ModuleNotFoundError: No module named 'waitress'`: install dependencies with `pip install -r requirements.txt` (run from `helpdesk` folder or `pip install -r helpdesk/requirements.txt` from repo root).
+- If `helpdesk.db` is missing, start the app (it is auto-created by `init_db()` in `server/main.py`). Confirm the file exists at `helpdesk/helpdesk.db` after the first run.
 
-## License
+---
 
-MIT
+## API Reference
+
+| Method | Endpoint                       | Description                  |
+|--------|--------------------------------|------------------------------|
+| GET    | `/tickets`                     | List all tickets (HTML page) |
+| POST   | `/tickets`                     | Create a ticket (form)       |
+| POST   | `/tickets/<id>/assign`         | Assign ticket to a name      |
+| POST   | `/tickets/<id>/status`         | Advance to next status step  |
+
+## Status Flow
+
+```
+To Do  →  In Progress  →  In Review  →  Done
+```
+
+Notes:
+- Manager users may set any status; regular users advance according to allowed transitions.
+
